@@ -58,3 +58,33 @@ func (cfg *apiConfig) postChirpsFunc(w http.ResponseWriter, r *http.Request) {
 	}
 	respondWithJSON(w, http.StatusCreated, resp)
 }
+
+func (cfg *apiConfig) getChirpsFunc(resp http.ResponseWriter, req *http.Request) {
+	type response struct {
+		Id        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
+
+	chirps, err := cfg.dbQueries.GetAllChirps(req.Context())
+	if err != nil {
+		log.Printf("Error getting chirps: %s", err)
+		resp.WriteHeader(500)
+		return
+	}
+
+	responses := make([]response, 0, len(chirps))
+	for _, chirp := range chirps {
+		r := response{
+			Id:        chirp.ID,
+			CreatedAt: chirp.CreatedAt,
+			UpdatedAt: chirp.UpdatedAt,
+			Body:      chirp.Body,
+			UserID:    chirp.UserID,
+		}
+		responses = append(responses, r)
+	}
+	respondWithJSON(resp, http.StatusOK, responses)
+}
