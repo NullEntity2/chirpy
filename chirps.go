@@ -1,7 +1,9 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -59,14 +61,15 @@ func (cfg *apiConfig) postChirpsFunc(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, resp)
 }
 
+type chirpResponse struct {
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserID    uuid.UUID `json:"user_id"`
+}
+
 func (cfg *apiConfig) getChirpsFunc(resp http.ResponseWriter, req *http.Request) {
-	type response struct {
-		Id        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Body      string    `json:"body"`
-		UserID    uuid.UUID `json:"user_id"`
-	}
 
 	chirps, err := cfg.dbQueries.GetAllChirps(req.Context())
 	if err != nil {
@@ -75,9 +78,9 @@ func (cfg *apiConfig) getChirpsFunc(resp http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	responses := make([]response, 0, len(chirps))
+	responses := make([]chirpResponse, 0, len(chirps))
 	for _, chirp := range chirps {
-		r := response{
+		r := chirpResponse{
 			Id:        chirp.ID,
 			CreatedAt: chirp.CreatedAt,
 			UpdatedAt: chirp.UpdatedAt,
@@ -87,4 +90,44 @@ func (cfg *apiConfig) getChirpsFunc(resp http.ResponseWriter, req *http.Request)
 		responses = append(responses, r)
 	}
 	respondWithJSON(resp, http.StatusOK, responses)
+}
+
+func (cfg *apiConfig) getChirpFunc(resp http.ResponseWriter, req *http.Request) {
+	idString := req.PathValue("id")
+	id, err := uuid.Parse(idString)
+	if err != nil {
+		log.Printf("Error parsing uuid from idString: %s", err)
+		respondWithError(resp, http.StatusBadRequest, "error parsing provided uuid")
+		return
+	}
+
+	type response struct {
+		Id        uuid.UUID `json:"id"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Body      string    `json:"body"`
+		UserID    uuid.UUID `json:"user_id"`
+	}
+
+	chirp, err := cfg.dbQueries.GetChirp(req.Context(), id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("Chirp not found: %s", err)
+			resp.WriteHeader(404)
+			return
+		} else {
+			log.Printf("Error getting chirps: %s", err)
+			resp.WriteHeader(500)
+			return
+		}
+	}
+
+	r := chirpResponse{
+		Id:        chirp.ID,
+		CreatedAt: chirp.CreatedAt,
+		UpdatedAt: chirp.UpdatedAt,
+		Body:      chirp.Body,
+		UserID:    chirp.UserID,
+	}
+	respondWithJSON(resp, http.StatusOK, r)
 }
