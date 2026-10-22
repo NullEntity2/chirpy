@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/NullEntity2/chirpy/internal/auth"
 	"github.com/NullEntity2/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -35,6 +36,20 @@ func (cfg *apiConfig) postChirpsFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		log.Printf("Did not recieve bearer token: %s", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	uuid, err := auth.ValidateJWT(token, cfg.JWTSecret)
+	if err != nil {
+		log.Printf("Could not validate bearer token: %s", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	if len(params.Body) > 140 {
 		respondWithError(w, http.StatusBadRequest, "Message must be less than 141 characters")
 		return
@@ -42,7 +57,7 @@ func (cfg *apiConfig) postChirpsFunc(w http.ResponseWriter, r *http.Request) {
 
 	ccParams := database.CreateChirpParams{
 		Body:   sanitizeString(params.Body),
-		UserID: params.UserID,
+		UserID: uuid,
 	}
 	createdChirp, err := cfg.dbQueries.CreateChirp(r.Context(), ccParams)
 	if err != nil {

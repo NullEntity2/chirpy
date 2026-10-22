@@ -17,6 +17,7 @@ type apiConfig struct {
 	fileserverHits atomic.Int32
 	dbQueries      *database.Queries
 	platform       string
+	JWTSecret      string
 }
 
 func main() {
@@ -24,6 +25,7 @@ func main() {
 
 	dbURL := os.Getenv("DB_URL")
 	platform := os.Getenv("PLATFORM")
+	jwtSecret := os.Getenv("JWT_SECRET")
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		fmt.Printf("error opening db connection: %s", err)
@@ -34,6 +36,7 @@ func main() {
 	apiCfg := apiConfig{
 		dbQueries: dbQueries,
 		platform:  platform,
+		JWTSecret: jwtSecret,
 	}
 	serveMux := http.NewServeMux()
 	serveMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))

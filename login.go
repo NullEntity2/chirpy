@@ -12,8 +12,9 @@ import (
 
 func (cfg *apiConfig) postLoginFunc(resp http.ResponseWriter, req *http.Request) {
 	type request struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Email            string `json:"email"`
+		Password         string `json:"password"`
+		ExpiresInSeconds *int   `json:"expires_in_seconds,omitempty"`
 	}
 
 	type response struct {
@@ -21,6 +22,7 @@ func (cfg *apiConfig) postLoginFunc(resp http.ResponseWriter, req *http.Request)
 		CreatedAt time.Time `json:"created_at"`
 		UpdatedAt time.Time `json:"updated_at"`
 		Email     string    `json:"email"`
+		Token     string    `json:"token"`
 	}
 
 	decoder := json.NewDecoder(req.Body)
@@ -54,11 +56,23 @@ func (cfg *apiConfig) postLoginFunc(resp http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	expiresIn := 60 * time.Minute
+	if params.ExpiresInSeconds != nil {
+		expiresIn = time.Duration(*params.ExpiresInSeconds) * time.Second
+	}
+	token, err := auth.MakeJWT(user.ID, cfg.JWTSecret, expiresIn)
+	if err != nil {
+		log.Printf("Error making JWT: %s", err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	r := response{
 		Id:        user.ID,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		Token:     token,
 	}
 	respondWithJSON(resp, http.StatusOK, r)
 }
