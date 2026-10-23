@@ -41,6 +41,7 @@ func (cfg *apiConfig) postUsersFunc(resp http.ResponseWriter, req *http.Request)
 	createUserParams := database.CreateUserParams{
 		Email:          params.Email,
 		HashedPassword: hashedPassword,
+		IsChirpyRed:    false,
 	}
 	createdUser, err := cfg.dbQueries.CreateUser(req.Context(), createUserParams)
 	if err != nil {
