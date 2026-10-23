@@ -21,3 +21,11 @@ SELECT
     hashed_password
 FROM users
 WHERE email = $1;
+
+-- name: UpdateUser :exec
+UPDATE users
+SET
+    updated_at = NOW(),
+    email = $2,
+    hashed_password = $3
+WHERE id = $1;

@@ -95,6 +95,13 @@ func (cfg *apiConfig) postRefreshFunc(resp http.ResponseWriter, req *http.Reques
 		return
 	}
 
+	_, err = auth.ValidateJWT(bearerToken, cfg.JWTSecret)
+	if err != nil {
+		log.Printf("Failed to validate JWT: %s", err)
+		resp.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	dbToken, err := cfg.dbQueries.GetRefreshToken(req.Context(), bearerToken)
 	if err != nil {
 		log.Printf("error getting refresh token from db: %s", err)

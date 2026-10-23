@@ -11,50 +11,103 @@ import (
 	"github.com/google/uuid"
 )
 
-func (cfg *apiConfig) postUsersFunc(w http.ResponseWriter, r *http.Request) {
-	type request struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+type userResponse struct {
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Email     string    `json:"email"`
+}
+type userRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
 
-	type response struct {
-		Id        uuid.UUID `json:"id"`
-		CreatedAt time.Time `json:"created_at"`
-		UpdatedAt time.Time `json:"updated_at"`
-		Email     string    `json:"email"`
-	}
-
-	decoder := json.NewDecoder(r.Body)
-	params := request{}
+func (cfg *apiConfig) postUsersFunc(resp http.ResponseWriter, req *http.Request) {
+	decoder := json.NewDecoder(req.Body)
+	params := userRequest{}
 	err := decoder.Decode(&params)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
-		w.WriteHeader(500)
+		resp.WriteHeader(500)
 		return
 	}
 
 	hashedPassword, err := auth.HashPassword(params.Password)
 	if err != nil {
 		log.Printf("Error hashing password: %s", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		resp.WriteHeader(http.StatusInternalServerError)
 	}
 
 	createUserParams := database.CreateUserParams{
 		Email:          params.Email,
 		HashedPassword: hashedPassword,
 	}
-	createdUser, err := cfg.dbQueries.CreateUser(r.Context(), createUserParams)
+	createdUser, err := cfg.dbQueries.CreateUser(req.Context(), createUserParams)
 	if err != nil {
 		log.Printf("Error inserting user: %s", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	resp := response{
+	respStruct := userResponse{
 		Id:        createdUser.ID,
 		CreatedAt: createdUser.CreatedAt,
 		UpdatedAt: createdUser.UpdatedAt,
 		Email:     createdUser.Email,
 	}
-	respondWithJSON(w, http.StatusCreated, resp)
+	respondWithJSON(resp, http.StatusCreated, respStruct)
+}
+
+func (cfg *apiConfig) putUsersFunc(resp http.ResponseWriter, req *http.Request) {
+	bearerToken, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		log.Printf("Error checking password hash: %s", err)
+		resp.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	userId, err := auth.ValidateJWT(bearerToken, cfg.JWTSecret)
+	if err != nil {
+		log.Printf("Failed to validate JWT: %s", err)
+		resp.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	decoder := json.NewDecoder(req.Body)
+	params := userRequest{}
+	err = decoder.Decode(&params)
+	if err != nil {
+		log.Printf("Error decoding parameters: %s", err)
+		resp.WriteHeader(500)
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(params.Password)
+	if err != nil {
+		log.Printf("error hashing password: %s", err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	uup := database.UpdateUserParams{
+		ID:             userId,
+		Email:          params.Email,
+		HashedPassword: hashedPassword,
+	}
+	err = cfg.dbQueries.UpdateUser(req.Context(), uup)
+	if err != nil {
+		log.Printf("error updating user: %s", err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	user, err := cfg.dbQueries.GetUserByEmail(req.Context(), uup.Email)
+
+	ur := userResponse{
+		Id:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	}
+	respondWithJSON(resp, http.StatusOK, ur)
 }
