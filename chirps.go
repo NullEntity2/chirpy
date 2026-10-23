@@ -13,6 +13,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type chirpResponse struct {
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Body      string    `json:"body"`
+	UserID    uuid.UUID `json:"user_id"`
+}
+
 func (cfg *apiConfig) postChirpsFunc(w http.ResponseWriter, r *http.Request) {
 	type request struct {
 		Body   string    `json:"body"`
@@ -76,14 +84,6 @@ func (cfg *apiConfig) postChirpsFunc(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, resp)
 }
 
-type chirpResponse struct {
-	Id        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Body      string    `json:"body"`
-	UserID    uuid.UUID `json:"user_id"`
-}
-
 func (cfg *apiConfig) getChirpsFunc(resp http.ResponseWriter, req *http.Request) {
 
 	chirps, err := cfg.dbQueries.GetAllChirps(req.Context())
@@ -145,4 +145,56 @@ func (cfg *apiConfig) getChirpFunc(resp http.ResponseWriter, req *http.Request) 
 		UserID:    chirp.UserID,
 	}
 	respondWithJSON(resp, http.StatusOK, r)
+}
+
+func (cfg *apiConfig) deleteChirpFunc(resp http.ResponseWriter, req *http.Request) {
+	token, err := auth.GetBearerToken(req.Header)
+	if err != nil {
+		log.Printf("Did not recieve bearer token: %s", err)
+		resp.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	jwtUserId, err := auth.ValidateJWT(token, cfg.JWTSecret)
+	if err != nil {
+		log.Printf("Could not validate bearer token: %s", err)
+		resp.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	chirpIdString := req.PathValue("chirpID")
+	chirpId, err := uuid.Parse(chirpIdString)
+	if err != nil {
+		log.Printf("Error parsing uuid from chirpIdString: %s", err)
+		respondWithError(resp, http.StatusBadRequest, "error parsing provided uuid")
+		return
+	}
+
+	chirp, err := cfg.dbQueries.GetChirp(req.Context(), chirpId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("Could not find chirp: %s", err)
+			respondWithError(resp, http.StatusNotFound, "error parsing provided uuid")
+			return
+		} else {
+			log.Printf("Error querying chirp: %s", err)
+			respondWithError(resp, http.StatusInternalServerError, "error parsing provided uuid")
+			return
+		}
+	}
+
+	if jwtUserId != chirp.UserID {
+		log.Printf("Chirp does not belong to owner")
+		respondWithError(resp, http.StatusForbidden, "error parsing provided uuid")
+		return
+	}
+
+	err = cfg.dbQueries.DeleteChirp(req.Context(), chirp.ID)
+	if err != nil {
+		log.Printf("Error deleting chirp: %s", err)
+		respondWithError(resp, http.StatusInternalServerError, "error parsing provided uuid")
+		return
+	}
+
+	resp.WriteHeader(http.StatusNoContent)
 }
