@@ -24,6 +24,7 @@ func (cfg *apiConfig) postLoginFunc(resp http.ResponseWriter, req *http.Request)
 		Email        string    `json:"email"`
 		Token        string    `json:"token"`
 		RefreshToken string    `json:"refresh_token"`
+		IsChirpyRed  bool      `json:"is_chirpy_red"`
 	}
 
 	decoder := json.NewDecoder(req.Body)
@@ -79,6 +80,7 @@ func (cfg *apiConfig) postLoginFunc(resp http.ResponseWriter, req *http.Request)
 		Email:        user.Email,
 		Token:        token,
 		RefreshToken: dbToken.Token,
+		IsChirpyRed:  user.IsChirpyRed,
 	}
 	respondWithJSON(resp, http.StatusOK, r)
 }

@@ -52,6 +52,7 @@ func main() {
 	serveMux.HandleFunc("POST /api/revoke", apiCfg.postRevokeFunc)
 	serveMux.HandleFunc("PUT /api/users", apiCfg.putUsersFunc)
 	serveMux.HandleFunc("DELETE /api/chirps/{chirpID}", apiCfg.deleteChirpFunc)
+	serveMux.HandleFunc("POST /api/polka/webhooks", apiCfg.postPolkaWebookFunc)
 	server := http.Server{Handler: serveMux, Addr: ":8081"}
 	log.Fatal(server.ListenAndServe())
 }

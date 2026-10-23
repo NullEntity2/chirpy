@@ -12,10 +12,11 @@ import (
 )
 
 type userResponse struct {
-	Id        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
+	Id          uuid.UUID `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Email       string    `json:"email"`
+	IsChirpyRed bool      `json:"is_chirpy_red"`
 }
 type userRequest struct {
 	Email    string `json:"email"`
@@ -51,10 +52,11 @@ func (cfg *apiConfig) postUsersFunc(resp http.ResponseWriter, req *http.Request)
 	}
 
 	respStruct := userResponse{
-		Id:        createdUser.ID,
-		CreatedAt: createdUser.CreatedAt,
-		UpdatedAt: createdUser.UpdatedAt,
-		Email:     createdUser.Email,
+		Id:          createdUser.ID,
+		CreatedAt:   createdUser.CreatedAt,
+		UpdatedAt:   createdUser.UpdatedAt,
+		Email:       createdUser.Email,
+		IsChirpyRed: createUserParams.IsChirpyRed,
 	}
 	respondWithJSON(resp, http.StatusCreated, respStruct)
 }
@@ -105,10 +107,11 @@ func (cfg *apiConfig) putUsersFunc(resp http.ResponseWriter, req *http.Request) 
 	user, err := cfg.dbQueries.GetUserByEmail(req.Context(), uup.Email)
 
 	ur := userResponse{
-		Id:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
+		Id:          user.ID,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
+		Email:       user.Email,
+		IsChirpyRed: user.IsChirpyRed,
 	}
 	respondWithJSON(resp, http.StatusOK, ur)
 }
