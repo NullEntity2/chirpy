@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/NullEntity2/chirpy/internal/auth"
@@ -88,6 +89,8 @@ func (cfg *apiConfig) getChirpsFunc(resp http.ResponseWriter, req *http.Request)
 	authorIdString := req.URL.Query().Get("author_id")
 	authorId, _ := uuid.Parse(authorIdString)
 
+	sort := req.URL.Query().Get("sort")
+
 	var chirps []database.Chirp
 	var err error
 	if authorId != uuid.Nil {
@@ -117,6 +120,18 @@ func (cfg *apiConfig) getChirpsFunc(resp http.ResponseWriter, req *http.Request)
 		}
 		responses = append(responses, r)
 	}
+
+	switch sort {
+	case "asc":
+		slices.SortFunc(responses, func(a, b chirpResponse) int {
+			return a.CreatedAt.Compare(b.CreatedAt)
+		})
+	case "desc":
+		slices.SortFunc(responses, func(a, b chirpResponse) int {
+			return b.CreatedAt.Compare(a.CreatedAt)
+		})
+	}
+
 	respondWithJSON(resp, http.StatusOK, responses)
 }
 
