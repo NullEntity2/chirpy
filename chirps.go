@@ -85,12 +85,25 @@ func (cfg *apiConfig) postChirpsFunc(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) getChirpsFunc(resp http.ResponseWriter, req *http.Request) {
+	authorIdString := req.URL.Query().Get("author_id")
+	authorId, _ := uuid.Parse(authorIdString)
 
-	chirps, err := cfg.dbQueries.GetAllChirps(req.Context())
-	if err != nil {
-		log.Printf("Error getting chirps: %s", err)
-		resp.WriteHeader(500)
-		return
+	var chirps []database.Chirp
+	var err error
+	if authorId != uuid.Nil {
+		chirps, err = cfg.dbQueries.GetAllChirpsByAuthor(req.Context(), authorId)
+		if err != nil {
+			log.Printf("Error getting chirps by author: %s", err)
+			resp.WriteHeader(500)
+			return
+		}
+	} else {
+		chirps, err = cfg.dbQueries.GetAllChirps(req.Context())
+		if err != nil {
+			log.Printf("Error getting chirps: %s", err)
+			resp.WriteHeader(500)
+			return
+		}
 	}
 
 	responses := make([]chirpResponse, 0, len(chirps))
