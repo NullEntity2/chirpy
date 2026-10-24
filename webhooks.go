@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/NullEntity2/chirpy/internal/auth"
 	"github.com/NullEntity2/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -17,9 +18,22 @@ func (cfg *apiConfig) postPolkaWebookFunc(resp http.ResponseWriter, req *http.Re
 		} `json:"data"`
 	}
 
+	apiKey, err := auth.GetAPIKey(req.Header)
+	if err != nil {
+		log.Printf("Error getting API key from headers: %s", err)
+		resp.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if apiKey != cfg.PolkaKey {
+		log.Printf("apiKey != cfg.PolkaKey")
+		resp.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	decoder := json.NewDecoder(req.Body)
 	params := polkaRequest{}
-	err := decoder.Decode(&params)
+	err = decoder.Decode(&params)
 	if err != nil {
 		log.Printf("Error decoding parameters: %s", err)
 		resp.WriteHeader(http.StatusBadRequest)
