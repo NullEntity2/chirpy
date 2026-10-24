@@ -42,7 +42,7 @@ func main() {
 		PolkaKey:  polkaKey,
 	}
 	serveMux := http.NewServeMux()
-	serveMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir(".")))))
+	serveMux.Handle("/app/", apiCfg.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("./html")))))
 	serveMux.HandleFunc("GET /api/healthz", healthzFunc)
 	serveMux.HandleFunc("GET /admin/metrics", apiCfg.hitsFunc)
 	serveMux.HandleFunc("POST /admin/reset", apiCfg.resetFunc)
